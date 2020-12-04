@@ -223,7 +223,7 @@ void apply_filter(struct rgb_image *input_image, struct rgb_image *output_image,
     	    }
     	}
 	gettimeofday(&end, NULL);
-        printf("elapsed: %.2lf\n", ((1000000.0 + (end.tv_sec - start.tv_sec) + (1.0 * (end.tv_usec - start.tv_usec))) / 1000000.0));
+        printf("elapsed: %.2lf\n", ((1000000.0 * (end.tv_sec - start.tv_sec) + (1.0 * (end.tv_usec - start.tv_usec))) / 1000000.0));
     }
 }
 
