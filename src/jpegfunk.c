@@ -212,7 +212,7 @@ void apply_filter(struct rgb_image *input_image, struct rgb_image *output_image,
     {
 	gettimeofday(&start, NULL);
 	{
-	#pragma omp for nowait
+	#pragma omp for nowait schedule(dynamic)
     	    for (row = 0; row < input_image->height; row++) {
         	for (col = 0; col < input_image->width; col++) {
             	    for (rgb = 0; rgb < 3; rgb++) {
