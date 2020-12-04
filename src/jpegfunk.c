@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <jpeglib.h>
+#include <sys/sysinfo.h>
+#include <omp.h>
+#include <sys/time.h>
 
 #define MIN(x,y) (((x) < (y)) ? (x) : (y))
 #define MAX(x,y) (((x) > (y)) ? (x) : (y))
@@ -199,24 +202,40 @@ unsigned char compute_pixel_value(struct rgb_image *input_image, int row, int co
  * @param input_image: the input image data structure
  * @param output_image: the output image data structure
  */
-void apply_filter(struct rgb_image *input_image, struct rgb_image *output_image) {
+void apply_filter(struct rgb_image *input_image, struct rgb_image *output_image, int numDPthreads) {
     int row, col, rgb;
+    struct timeval start, end;
+    omp_set_num_threads(numDPthreads);
 
-    for (row = 0; row < input_image->height; row++) {
-        for (col = 0; col < input_image->width; col++) {
-            for (rgb = 0; rgb < 3; rgb++) {
-                output_image->RGB[rgb][row * input_image->width + col] =
+
+    #pragma omp parallel private (row, col, rgb, start, end)
+    {
+	gettimeofday(&start, NULL);
+	{
+	#pragma omp for nowait
+    	    for (row = 0; row < input_image->height; row++) {
+        	for (col = 0; col < input_image->width; col++) {
+            	    for (rgb = 0; rgb < 3; rgb++) {
+                	output_image->RGB[rgb][row * input_image->width + col] =
                         compute_pixel_value(input_image, row, col, rgb);
-            }
-        }
+                    }
+                }
+    	    }
+    	}
+	gettimeofday(&end, NULL);
+        printf("elapsed: %.2lf\n", ((1000000.0 + (end.tv_sec - start.tv_sec) + (1.0 * (end.tv_usec - start.tv_usec))) / 1000000.0));
     }
 }
 
 
 int main(int argc, char **argv) {
 
+    // get number of data parallel threads
+    int numDPthreads = atoi(argv[3]);
+
     /** Parse Command-Line Arguments **/
-    if (argc != 3) {
+    if (argc != 4 || numDPthreads > get_nprocs_conf()) {
+	fprintf(stderr, "%d\n", get_nprocs_conf());
         fprintf(stderr, "Usage: %s <input jpg file path> <output jpg file path>\n", argv[0]);
         exit(1);
     }
@@ -227,8 +246,12 @@ int main(int argc, char **argv) {
     /** Create Output Image in RAM **/
     struct rgb_image *output_image = create_output_image(input_image);
 
+    struct timeval start, end;
+    gettimeofday(&start, NULL);
     /** Apply Filter **/
-    apply_filter(input_image, output_image);
+    apply_filter(input_image, output_image, numDPthreads);
+    gettimeofday(&end, NULL);
+    printf("Total Execution Time: %.2lf\n", ((1000000.0 * (end.tv_sec - start.tv_sec) + (1.0 * (end.tv_usec - start.tv_usec))) / 1000000.0));
 
     /** Save Output Image **/
     write_output_image(output_image, argv[2]);
